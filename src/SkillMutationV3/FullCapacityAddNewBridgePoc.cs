@@ -93,6 +93,8 @@ namespace NocturneSkillEvolution
 
         private const int LogicalSkillCapacity = 8;
 
+        private static (int Unit, int Target) _loggedLatchSkip;
+
         private static void Prefix()
         {
             FullCapacityAddNewBridgeArming.Armed = false;
@@ -144,8 +146,16 @@ namespace NocturneSkillEvolution
 
                 if (FullCapacityAddNewBridgeState.IsCompletedForSameEvent(unit, target))
                 {
+                    if (_loggedLatchSkip != (unit, target))
+                    {
+                        _loggedLatchSkip = (unit, target);
+                        MelonLogger.Msg(
+                            "[NocturneSkillEvolution] FULLCAP-ADDNEW-SKIP-COMPLETED-LATCH; " +
+                            $"unit={unit}; target={SkillNameResolver.Format(target)}.");
+                    }
                     return;
                 }
+                _loggedLatchSkip = (0, 0);
 
                 sbyte originalIndex = gbwk.PUpSkillIndex;
                 if (originalIndex < 0 || originalIndex >= skillCnt) return;
