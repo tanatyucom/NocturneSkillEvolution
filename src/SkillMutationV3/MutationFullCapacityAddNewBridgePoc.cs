@@ -83,6 +83,8 @@ namespace NocturneSkillEvolution
 
         private const int LogicalSkillCapacity = 8;
 
+        private static (int Unit, int Target) _loggedLatchSkip;
+
         private static void Prefix()
         {
             MutationAddNewBridgeArming.Armed = false;
@@ -132,6 +134,13 @@ namespace NocturneSkillEvolution
 
                 if (MutationAddNewBridgeState.IsCompletedForSameEvent(unit, target))
                 {
+                    if (_loggedLatchSkip != (unit, target))
+                    {
+                        _loggedLatchSkip = (unit, target);
+                        MelonLogger.Msg(
+                            "[NocturneSkillEvolution] MUTCAP-ADDNEW-SKIP-COMPLETED-LATCH; " +
+                            $"unit={unit}; target={SkillNameResolver.Format(target)}.");
+                    }
                     return;
                 }
 

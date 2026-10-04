@@ -143,9 +143,34 @@ namespace NocturneSkillEvolution
                         "[NocturneSkillEvolution] EPISODE-LATCH-CLEAR; " +
                         $"stockPtr=0x{stockPtr:X}; reason=LevelUpCnt {last}->{levelUpCnt} (new level detected).");
                 }
+
+                ClearBridgeCompletionLatches($"LevelUpCnt {last}->{levelUpCnt} (new level detected)");
             }
 
             EpisodeLastLevelUpCnt[stockPtr] = levelUpCnt;
+        }
+
+        // The full-capacity bridges' "completed for this (unit, target)
+        // event" latches only reset when rstUpdateSeqSkillPowerUp next runs
+        // with PUpSkillResult != 1. After a CANCEL nothing may run that
+        // path again, so the latch survived into a LATER level-up and that
+        // event's identical (unit, target) Power-Up skipped the bridge and
+        // was natively OVERWRITTEN (real-machine 2026-10-04: unit=28
+        // 静天の会心->会心 declined at 21:25:35, next battle at 21:26:49
+        // overwrote 静天の会心 with 会心). An event never spans a new level or
+        // a new result lifecycle, so both are cleared there. Never while a
+        // bridge is active.
+        private static void ClearBridgeCompletionLatches(string reason)
+        {
+            bool fullCap = FullCapacityAddNewBridgeState.CompletedLatchActive && !FullCapacityAddNewBridgeState.Active;
+            bool mutationCap = MutationAddNewBridgeState.CompletedLatchActive && !MutationAddNewBridgeState.Active;
+            if (!fullCap && !mutationCap) return;
+
+            if (fullCap) FullCapacityAddNewBridgeState.ResetCompletedLatch();
+            if (mutationCap) MutationAddNewBridgeState.ResetCompletedLatch();
+            MelonLogger.Msg(
+                "[NocturneSkillEvolution] BRIDGE-COMPLETED-LATCH-CLEAR; " +
+                $"fullCap={fullCap}; mutationCap={mutationCap}; reason={reason}.");
         }
 
         // SUPPRESSION POC: clear boundary, wired to rstinit.rstCreateTargetList
@@ -164,6 +189,7 @@ namespace NocturneSkillEvolution
             HandledCandidates.Clear();
             FirstSeenFrame.Clear();
             CoreConsumed.Clear();
+            ClearBridgeCompletionLatches("result-lifecycle (rstCreateTargetList)");
 
             // Coarser safety net for the episode latch, in addition to the
             // finer-grained LevelUpCnt-rise clear in OnLevelUpCntObserved -
